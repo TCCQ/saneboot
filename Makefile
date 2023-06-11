@@ -13,6 +13,8 @@ export PLATFORM
 BOARD := sifive_unleashed
 
 # sd image options
+TOTAL_SIZE = 4G
+FS_SIZE = 2G
 SPL_START   = 4096
 SPL_END = 8191
 UBOOT_START = 8192
@@ -32,8 +34,17 @@ UBOOTENV = a09354ac-cd63-11e8-9aff-70b3d592f0fa
 UBOOTDTB = 070dd1a8-cd64-11e8-aa3d-70b3d592f0fa
 UBOOTFIT = 04ffcafa-cd65-11e8-b974-70b3d592f0fa
 
+# --------------------------------------------------------------------
+# opensbi stuff
+
 opensbi/build/platform/generic/firmware/fw_dynamic.bin:
 	make -C opensbi
+
+opensbi/build/platform/generic/firmware/fw_payload.bin: u-boot/u-boot-dtb.bin
+	make -C opensbi FW_PAYLOAD_PATH=../u-boot/u-boot-dtb.bin
+
+# --------------------------------------------------------------------
+# u-boot stuff
 
 u-boot/.config:
 	make -C u-boot ${BOARD}_defconfig
@@ -42,51 +53,86 @@ u-boot/u-boot-dtb.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-
 	cp $< -t u-boot/
 	make -C u-boot u-boot-dtb.bin
 
-opensbi/build/platform/generic/firmware/fw_payload.bin: u-boot/u-boot-dtb.bin
-	make -C opensbi FW_PAYLOAD_PATH=../u-boot/u-boot-dtb.bin
-
-kernel/kernel: kernel/src/main.rs
-	cd kernel
-	cargo build --target riscv64imac-unknown-none-elf
-	cd ..
-
 u-boot/spl/u-boot-spl.bin: u-boot/.config
 	make -C u-boot spl/u-boot-spl.bin
 
+# --------------------------------------------------------------------
+# kernel stuff
+
+kernel/kernel: kernel/simple.S kernel/simple.ld
+	cd kernel; \
+	${CROSS_COMPILE}gcc -ffreestanding -nostdlib -no-pie -fno-pic \
+		-Tsimple.ld -e entry \
+		simple.S -o simple.elf; \
+	${CROSS_COMPILE}objcopy -O binary simple.elf kernel; \
+	cd ..
+
+# --------------------------------------------------------------------
+# make a FIT image for u-boot to launch, to be placed in the generic
+# fs part of the filesystem
+
+fit/simple.itb: fit/simple_fdt_kernel.its fit/target.dtb kernel/kernel
+	cd fit; \
+	mkimage -f simple_fdt_kernel.its simple.itb
+
+# --------------------------------------------------------------------
+# filesystem stuff for the third partition on the disk
+
+filesystem/root.img: fit/simple.itb kernel/kernel fit/target.dtb
+	qemu-img create filesystem/root.img ${FS_SIZE}
+	cp -t filesystem/root $^
+	mke2fs -d filesystem/root \
+		-L "SD Root" \
+		-t ext2 \
+		filesystem/root.img \
+		${FS_SIZE}
+
+# --------------------------------------------------------------------
+# making a bootable disk image
+
 format-boot-loader: u-boot/spl/u-boot-spl.bin \
-			opensbi/build/platform/generic/firmware/fw_payload.bin
+			opensbi/build/platform/generic/firmware/fw_payload.bin \
+			filesystem/root.img
 
 	@test -b $(DISK) || (echo "$(DISK): is not a block device"; exit 1)
-	sudo /sbin/sgdisk --clear  \
-	--new=1:$(SPL_START):$(SPL_END) --change-name=1:"spl" --typecode=1:$(SPL)\
-	--new=2:$(UBOOT_START):$(UBOOT_END) --change-name=2:"uboot" --typecode=2:$(UBOOT)\
+	sudo sgdisk --clear  \
+	--new=1:$(SPL_START):$(SPL_END) --change-name=1:"spl" --typecode=1:$(SPL) \
+	--new=2:$(UBOOT_START):$(UBOOT_END) --change-name=2:"uboot" --typecode=2:$(UBOOT) \
+	--new=3:0:+${FS_SIZE} --change-name=3:"file system" --typecode=3:8300 \
 	$(DISK)
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
 	@$(eval PART2 := $(DISK)p2)
-	# @$(eval PART3 := $(DISK)p3)
-	# @$(eval PART4 := $(DISK)p4)
+	@$(eval PART3 := $(DISK)p3)
+# @$(eval PART4 := $(DISK)p4)
 else ifeq ($(DISK)s1,$(wildcard $(DISK)s1))
 	@$(eval PART1 := $(DISK)s1)
 	@$(eval PART2 := $(DISK)s2)
-	# @$(eval PART3 := $(DISK)s3)
-	# @$(eval PART4 := $(DISK)s4)
+	@$(eval PART3 := $(DISK)s3)
+# @$(eval PART4 := $(DISK)s4)
 else ifeq ($(DISK)1,$(wildcard $(DISK)1))
 	@$(eval PART1 := $(DISK)1)
 	@$(eval PART2 := $(DISK)2)
-	# @$(eval PART3 := $(DISK)3)
-	# @$(eval PART4 := $(DISK)4)
+	@$(eval PART3 := $(DISK)3)
+# @$(eval PART4 := $(DISK)4)
 else
 	@echo Error: Could not find bootloader partition for $(DISK)
 	@exit 1
 endif
 	sudo dd if=u-boot/spl/u-boot-spl.bin of=$(PART1) bs=4096
 	sudo dd if=opensbi/build/platform/generic/firmware/fw_payload.bin of=$(PART2) bs=4096
-	# sudo dd if=$(vfat_image) of=$(PART3) bs=4096
+	sudo dd if=filesystem/root.img of=$(PART3) bs=4096
 	sync;
 
+# --------------------------------------------------------------------
+# misc
 
 clean:
 	make -C opensbi clean
 	make -C u-boot clean
-	rm sd.img
+	rm -f sd.img \
+		fit/simple.itb \
+		filesystem/root.img \
+		filesystem/root/* \
+		kernel/kernel \
+		kernel/simple.elf

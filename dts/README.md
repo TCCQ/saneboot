@@ -1,0 +1,1 @@
+This compiled device tree file (dts source -> dtb binary) was stolen from the u-boot build inside the starfive/VisionFive2 repo. A complete build system would build this too, possibly from the dts source found in the linux headers for riscv.
