@@ -84,6 +84,8 @@ fit/simple.itb: fit/simple_fdt_kernel.its fit/target.dtb kernel/kernel
 # filesystem stuff for the third partition on the disk
 
 filesystem/root.img: fit/simple.itb kernel/kernel fit/target.dtb
+	mkdir -p filesystem
+	mkdir -p filesystem/root
 	dd if=/dev/zero of=filesystem/root.img bs=1 count=0 seek=${FS_SIZE}
 	cp -t filesystem/root $^
 	mke2fs -d filesystem/root \
