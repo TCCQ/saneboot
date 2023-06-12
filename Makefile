@@ -1,7 +1,7 @@
 #general options
 CROSS_COMPILE := riscv64-linux-gnu-
 export CROSS_COMPILE
-MAKEFLAGS := -j$(nproc)
+# MAKEFLAGS := -j$(nproc)
 export MAKEFLAGS
 
 
@@ -36,7 +36,7 @@ UBOOTFIT = 04ffcafa-cd65-11e8-b974-70b3d592f0fa
 
 # --------------------------------------------------------------------
 # defaults
-all: 
+all:
 	@echo 'You probably want to flash an image with `make format-boot-loader /dev/{something}`. Consider making a loop device to ensure things get written properly.'
 
 # --------------------------------------------------------------------
@@ -106,7 +106,9 @@ format-boot-loader: u-boot/spl/u-boot-spl.bin \
 	--new=1:$(SPL_START):$(SPL_END) --change-name=1:"spl" --typecode=1:$(SPL) \
 	--new=2:$(UBOOT_START):$(UBOOT_END) --change-name=2:"uboot" --typecode=2:$(UBOOT) \
 	--new=3:0:+${FS_SIZE} --change-name=3:"file system" --typecode=3:8300 \
-	$(DISK)
+	$(DISK); \
+	sync; \
+	sudo partx $(DISK)
 ifeq ($(DISK)p1,$(wildcard $(DISK)p1))
 	@$(eval PART1 := $(DISK)p1)
 	@$(eval PART2 := $(DISK)p2)
@@ -137,8 +139,7 @@ endif
 clean:
 	make -C opensbi clean
 	make -C u-boot clean
-	rm -f sd.img \
-		fit/simple.itb \
+	rm -f fit/simple.itb \
 		filesystem/root.img \
 		filesystem/root/* \
 		kernel/kernel \
