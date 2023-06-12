@@ -35,6 +35,11 @@ UBOOTDTB = 070dd1a8-cd64-11e8-aa3d-70b3d592f0fa
 UBOOTFIT = 04ffcafa-cd65-11e8-b974-70b3d592f0fa
 
 # --------------------------------------------------------------------
+# defaults
+all: 
+	@echo 'You probably want to flash an image with `make format-boot-loader /dev/{something}`. Consider making a loop device to ensure things get written properly.'
+
+# --------------------------------------------------------------------
 # opensbi stuff
 
 opensbi/build/platform/generic/firmware/fw_dynamic.bin:
@@ -79,7 +84,7 @@ fit/simple.itb: fit/simple_fdt_kernel.its fit/target.dtb kernel/kernel
 # filesystem stuff for the third partition on the disk
 
 filesystem/root.img: fit/simple.itb kernel/kernel fit/target.dtb
-	qemu-img create filesystem/root.img ${FS_SIZE}
+	dd if=/dev/zero of=filesystem/root.img bs=1 count=0 seek=${FS_SIZE}
 	cp -t filesystem/root $^
 	mke2fs -d filesystem/root \
 		-L "SD Root" \
