@@ -16,8 +16,8 @@
                         arch = "riscv";
                         os = "linux";
                         compression = "none";
-                        load = <0x40200000>;
-                        entry = <0x40200024>;
+                        load = <0x80000000>;
+                        entry = <0x80000024>;
                         hash-1 {
                                 algo = "crc32";
                         };
@@ -27,7 +27,7 @@
                 };
                 fdt-1 {
                         description = "Flattened Device Tree blob";
-                        data = /incbin/("./target.dtb");
+                        data = /incbin/("./visionfive2.dtb");
                         type = "flat_dt";
                         arch = "riscv";
                         compression = "none";

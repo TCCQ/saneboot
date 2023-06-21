@@ -4,13 +4,13 @@ export CROSS_COMPILE
 # MAKEFLAGS := -j$(nproc)
 export MAKEFLAGS
 
-
 # opensbi options
 PLATFORM := generic
 export PLATFORM
 
 # u-boot options
-# BOARD := sifive_unleashed
+BOARD := sifive_unleashed
+# this is a default, and the virt targets should overwrite it
 
 # sd image options
 TOTAL_SIZE = 4G
@@ -68,19 +68,23 @@ u-boot/.config:
 u-boot/u-boot.itb: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
 	cp $< -t u-boot/
 	make -C u-boot 
-#for some reason uboot doesn't have a rule for u-boot.itb, but all makes it anyway?
+#for some reason uboot doesn't have a rule for u-boot.itb, but default makes it anyway?
 
+#This target exists for VF2, but not for virt?
 u-boot/u-boot-dtb.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
 	cp $< -t u-boot/
 	make -C u-boot u-boot-dtb.bin
 
-u-boot/spl/u-boot-spl.bin: u-boot/.config opensbi/build/platform/generic/firmware/fw_dynamic.bin
-	cp opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/
+u-boot/spl/u-boot-spl.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config 
+	cp $< u-boot/
 	make -C u-boot spl/u-boot-spl.bin
 
 # --------------------------------------------------------------------
 # kernel stuff
 
+# This likely not what you really want, and is just a test. Dropping
+# in your own binary for kernel/kernel should work, as should
+# replacing this rule with something better
 kernel/kernel: kernel/simple.S kernel/simple.ld
 	cd kernel; \
 	${CROSS_COMPILE}gcc -ffreestanding -nostdlib -no-pie -fno-pic \
@@ -93,14 +97,15 @@ kernel/kernel: kernel/simple.S kernel/simple.ld
 # make a FIT image for u-boot to launch, to be placed in the generic
 # fs part of the filesystem
 
-fit/simple.itb: fit/simple_fdt_kernel.its fit/target.dtb kernel/kernel
-	cd fit; \
-	mkimage -f simple_fdt_kernel.its simple.itb
+fit/visionfive2.itb: fit/visionfive2.its fit/visionfive2.dtb kernel/kernel
+	cd fit ; \
+	mkimage -f visionfive2.its visionfive2.itb
+
 
 # --------------------------------------------------------------------
 # filesystem stuff for the third partition on the disk
 
-filesystem/root.img: fit/simple.itb kernel/kernel fit/target.dtb
+filesystem/root.img: fit/visionfive2.itb kernel/kernel fit/visionfive2.dtb
 	mkdir -p filesystem
 	mkdir -p filesystem/root
 	dd if=/dev/zero of=filesystem/root.img bs=1 count=0 seek=${FS_SIZE}
@@ -156,7 +161,7 @@ endif
 clean:
 	make -C opensbi clean
 	make -C u-boot clean
-	rm -f fit/simple.itb \
+	rm -f fit/visionfive2.itb \
 		fit/virt.itb \
 		filesystem/root.img \
 		filesystem/root/* \
