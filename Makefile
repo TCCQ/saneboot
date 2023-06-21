@@ -10,7 +10,7 @@ PLATFORM := generic
 export PLATFORM
 
 # u-boot options
-BOARD := sifive_unleashed
+# BOARD := sifive_unleashed
 
 # sd image options
 TOTAL_SIZE = 4G
@@ -37,7 +37,18 @@ UBOOTFIT = 04ffcafa-cd65-11e8-b974-70b3d592f0fa
 # --------------------------------------------------------------------
 # defaults
 all:
-	@echo 'You probably want to flash an image with `make format-boot-loader /dev/{something}`. Consider making a loop device to ensure things get written properly.'
+	@echo -e 'You can either make an sd image for a starfive visionfive2 board or you can run a test on the qemu virt machine. To do the former, read the makefile. To do the later run `make virt-run`. \n\nWhen switching between targets, run `make clean` to prevent use of the wrong config file for uboot.\n\nBoth targets should enable you to boot the binary image at /kernel/kernel in the saneboot source tree. With virt, `bootm 0x90000000` should launch it. With visionfive2, you will need to load it from the sdcard with `load mmc 1:3 _ simple.itb` and launch with `bootm _`, where `_` is an address of your choosing.'
+
+fit/virt.itb:  fit/virt.its kernel/kernel
+	cd fit ; \
+	mkimage -f virt.its virt.itb
+
+virt-run: BOARD := qemu-riscv64_spl
+virt-run: fit/virt.itb opensbi/build/platform/generic/firmware/fw_dynamic.bin \
+		u-boot/.config u-boot/spl/u-boot-spl.bin u-boot/u-boot.itb
+	qemu-system-riscv64 -nographic -machine virt -m 4G -bios u-boot/spl/u-boot-spl.bin \
+		-device loader,file=u-boot/u-boot.itb,addr=0x80200000 \
+		-device loader,file=fit/virt.itb,addr=0x90000000
 
 # --------------------------------------------------------------------
 # opensbi stuff
@@ -54,11 +65,17 @@ opensbi/build/platform/generic/firmware/fw_payload.bin: u-boot/u-boot-dtb.bin
 u-boot/.config:
 	make -C u-boot ${BOARD}_defconfig
 
+u-boot/u-boot.itb: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
+	cp $< -t u-boot/
+	make -C u-boot 
+#for some reason uboot doesn't have a rule for u-boot.itb, but all makes it anyway?
+
 u-boot/u-boot-dtb.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
 	cp $< -t u-boot/
 	make -C u-boot u-boot-dtb.bin
 
-u-boot/spl/u-boot-spl.bin: u-boot/.config
+u-boot/spl/u-boot-spl.bin: u-boot/.config opensbi/build/platform/generic/firmware/fw_dynamic.bin
+	cp opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/
 	make -C u-boot spl/u-boot-spl.bin
 
 # --------------------------------------------------------------------
@@ -140,6 +157,7 @@ clean:
 	make -C opensbi clean
 	make -C u-boot clean
 	rm -f fit/simple.itb \
+		fit/virt.itb \
 		filesystem/root.img \
 		filesystem/root/* \
 		kernel/kernel \
