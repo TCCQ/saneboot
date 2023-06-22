@@ -5,13 +5,13 @@ MAKEFLAGS := -j1
 export MAKEFLAGS
 # ^ causes problems if parallel?
 
-
 # opensbi options
 PLATFORM := generic
 export PLATFORM
 
 # u-boot options
 BOARD := sifive_unleashed
+# this is a default, and the virt targets should overwrite it
 
 # sd image options
 TOTAL_SIZE = 4G
@@ -37,8 +37,19 @@ UBOOT = 5B193300-FC78-40CD-8002-E86C45580B47
 
 # --------------------------------------------------------------------
 # defaults
-all: sd.img
-	@echo 'You probably want to flash an image with the results of `make sd.img`.'
+all:
+	@echo -e 'You can either make an sd image for a starfive visionfive2 board or you can run a test on the qemu virt machine. To do the former, read the makefile. To do the later run `make virt-run`. \n\nWhen switching between targets, run `make clean` to prevent use of the wrong config file for uboot.\n\nBoth targets should enable you to boot the binary image at /kernel/kernel in the saneboot source tree. With virt, `bootm 0x90000000` should launch it. With visionfive2, you will need to load it from the sdcard with `load mmc 1:3 _ simple.itb` and launch with `bootm _`, where `_` is an address of your choosing.'
+
+fit/virt.itb:  fit/virt.its kernel/kernel
+	cd fit ; \
+	mkimage -f virt.its virt.itb
+
+virt-run: BOARD := qemu-riscv64_spl
+virt-run: fit/virt.itb opensbi/build/platform/generic/firmware/fw_dynamic.bin \
+		u-boot/.config u-boot/spl/u-boot-spl.bin u-boot/u-boot.itb
+	qemu-system-riscv64 -nographic -machine virt -m 4G -bios u-boot/spl/u-boot-spl.bin \
+		-device loader,file=u-boot/u-boot.itb,addr=0x80200000 \
+		-device loader,file=fit/virt.itb,addr=0x90000000
 
 # --------------------------------------------------------------------
 # opensbi stuff
@@ -55,16 +66,26 @@ opensbi/build/platform/generic/firmware/fw_payload.bin: u-boot/u-boot-dtb.bin
 u-boot/.config:
 	make -C u-boot ${BOARD}_defconfig
 
+u-boot/u-boot.itb: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
+	cp $< -t u-boot/
+	make -C u-boot 
+#for some reason uboot doesn't have a rule for u-boot.itb, but default makes it anyway?
+
+#This target exists for VF2, but not for virt?
 u-boot/u-boot-dtb.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
 	cp $< -t u-boot/
 	make -C u-boot u-boot-dtb.bin
 
-u-boot/spl/u-boot-spl.bin: u-boot/.config
+u-boot/spl/u-boot-spl.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config 
+	cp $< u-boot/
 	make -C u-boot spl/u-boot-spl.bin
 
 # --------------------------------------------------------------------
 # kernel stuff
 
+# This likely not what you really want, and is just a test. Dropping
+# in your own binary for kernel/kernel should work, as should
+# replacing this rule with something better
 kernel/kernel: kernel/simple.S kernel/simple.ld
 	cd kernel; \
 	${CROSS_COMPILE}gcc -ffreestanding -nostdlib -no-pie -fno-pic \
@@ -77,14 +98,15 @@ kernel/kernel: kernel/simple.S kernel/simple.ld
 # make a FIT image for u-boot to launch, to be placed in the generic
 # fs part of the filesystem
 
-fit/simple.itb: fit/simple_fdt_kernel.its fit/target.dtb kernel/kernel
-	cd fit; \
-	mkimage -f simple_fdt_kernel.its simple.itb
+fit/visionfive2.itb: fit/visionfive2.its fit/visionfive2.dtb kernel/kernel
+	cd fit ; \
+	mkimage -f visionfive2.its visionfive2.itb
+
 
 # --------------------------------------------------------------------
 # filesystem stuff for the third partition on the disk
 
-filesystem/root.img: fit/simple.itb kernel/kernel fit/target.dtb
+filesystem/root.img: fit/visionfive2.itb kernel/kernel fit/visionfive2.dtb
 	mkdir -p filesystem
 	mkdir -p filesystem/root
 	dd if=/dev/zero of=filesystem/root.img bs=1 count=0 seek=${FS_SIZE}
@@ -120,8 +142,8 @@ sd.img: u-boot/spl/u-boot-spl.bin \
 clean:
 	make -C opensbi clean
 	make -C u-boot clean
-	rm -f sd.img \
-		fit/simple.itb \
+	rm -f fit/visionfive2.itb \
+		fit/virt.itb \
 		filesystem/root.img \
 		filesystem/root/* \
 		kernel/kernel \
