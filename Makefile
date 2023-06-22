@@ -13,7 +13,7 @@ PLATFORM := generic
 export PLATFORM
 
 # u-boot options
-BOARD := sifive_unleashed
+BOARD := starfive_visionfive2
 # this is a default, and the virt targets should overwrite it
 
 # sd image options

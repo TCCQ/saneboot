@@ -1,6 +1,4 @@
-This is an attempt at a sane booting protocol for RISC-V. Specifically it targets the StarFive boards. Ideally it would also support Qemu's sifive_u target, but we will see.
-
-Much of the content of this repo is stolen from the StarFive/VisionFive2 example repo's build procedure.
+This is an attempt at a sane booting protocol for RISC-V. Specifically it targets the StarFive boards. It also supports the qemu virt machine for ease of development.
 
 Be sure to have git-lfs and do a `git submodule update --init --recursive`.
 
@@ -9,18 +7,24 @@ This is an incomplete list of required build tools you might not already have, f
 - dtc
 - mtools
 
-Parallel building with `make -j$(nproc)` is highly encouraged, as it setting `CROSS_COMPILE=riscv64-linux-gnu-` before anything, although in theory the makefile should do it for you.
+There are two main ways of using this system. The goal of both is to allow you to launch the binary located at `kernel/kernel` on top of an opensbi + uboot base. This means that the kernel can use opensbi calls, and uboot is just there to get the ball rolling.
 
-The goal is to make an sdcard image that will boot to the u-boot prompt in S mode. After that we can put our real kernel on the remaining space on the sdcard and boot from the u-boot prompt. (Or does the entry of the target kernel get baked into the binary blob? I don't think so...)
+- The first is to create a bootable sd card image for use with Starfive VisionFive2 boards. This can be accomplished by placing your kernel at `kernel/kernel` (or better yet, replacing the make rule for it), and running `make sd.img`. This should make a raw disk image called `sd.img` in the root of the repo that can be booted on a VF2 board after flashing the sd (likely with `dd`). Once at the uboot prompt, copy the image into memory with `load mmc 1:3 0x90000000 visionfive2.its`, inspect it with `iminfo 0x90000000` and launch it with `bootm 0x90000000`. When in doubt, uboot has `help [cmd]`.
 
-If everything works as intended, once the repo is set up, then you should be able to make an sdcard image with just
-```
-make format-boot-loader DISK=/dev/_
-```
-one thing you might want to do for further control / inspection is make a file backed block device, and then talk about it as a loop device with
-```
-sudo losetup -fP sd.img
-```
-which should make a new `/dev/loop_` for you. Be sure to unloop it with `sudo losetup -d /dev/loop_`!
+- The second is to run a qemu virtual machine to quickly test a kernel build. This also uses `kernel/kernel` in the same way, and can be invoked with `make virt-run`. Once at the uboot prompt, `bootm 0x90000000` should start your kernel. You can exit with `C-a x`.
 
-For reasons I don't fully understand, the format-boot-loader target doesn't always work, instead giving an error about not being able to find the boot partitions. Try running it again and make sure your block device, real or file backed is at least 4G.
+Be sure to `make clean` between switching targets!
+
+The idea is that if your kernel can be configured to expect either the virt machine or the VF2 board, then you can quickly prototype with virt, and run production with VF2.
+
+U-boot should supply your kernel with a device tree on boot (passed in a register). The devices trees should be correct for the two targets above if your kernel expects/uses them.
+
+An more in-depth explanation of what all the build artifacts and files are can be found in the makefile.
+
+-------------------------------------------------------------------------------
+
+* Sources:
+- Much of the content of this repo is stolen from the StarFive/VisionFive2 example repo's build procedure.
+- The device tree binary for visionfive2 is stolen from the linux build inside the starfive repo above
+- The device tree binary for virt is acquired via `qemu-system-riscv64 -M virt,dumpdtb=virt.dtb`
+- The .its source files are adapted from the u-boot repo docs directory
