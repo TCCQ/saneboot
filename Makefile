@@ -22,7 +22,7 @@ UBOOT_START = 8192
 UBOOT_END = 16383
 UBOOT_SIZE = $(shell expr $(UBOOT_END) - $(UBOOT_START) + 1)
 EXT2_START = 16384
-EXT2_END = 4210688
+EXT2_END = 8386559
 EXT2_SIZE = $(shell expr $(EXT2_END) - $(EXT2_START) + 1)
 SECTOR_SIZE = 512
 
@@ -124,16 +124,16 @@ sd.img: u-boot/spl/u-boot-spl.bin \
 			opensbi/build/platform/generic/firmware/fw_payload.bin \
 			filesystem/root.img
 	dd if=/dev/zero of=sd.img bs=1 count=0 seek=${TOTAL_SIZE}
-	sudo sgdisk --clear  \
+	sgdisk --clear  \
 		--new=1:$(SPL_START):$(SPL_END) --change-name=1:"spl" --typecode=1:$(SPL) \
 		--new=2:$(UBOOT_START):$(UBOOT_END) --change-name=2:"uboot" --typecode=2:$(UBOOT) \
 		--new=3:$(EXT2_START):$(EXT2_END) --change-name=3:"file system" --typecode=3:8300 \
 		sd.img
-	dd if=u-boot/spl/u-boot-spl.bin of=sd.img bs=$(SECTOR_SIZE) seek=$(SPL_START)
+	dd if=u-boot/spl/u-boot-spl.bin of=sd.img obs=$(SECTOR_SIZE) oseek=$(SPL_START) conv=notrunc
 	dd if=opensbi/build/platform/generic/firmware/fw_payload.bin \
-		of=sd.img bs=$(SECTOR_SIZE) seek=$(UBOOT_START)
-	dd if=filesystem/root.img of=sd.img bs=$(SECTOR_SIZE) \
-		seek=$(EXT2_START)
+		of=sd.img obs=$(SECTOR_SIZE) oseek=$(UBOOT_START) conv=notrunc
+	dd if=filesystem/root.img of=sd.img obs=$(SECTOR_SIZE) \
+		oseek=$(EXT2_START) conv=notrunc
 	sync;
 
 # --------------------------------------------------------------------
@@ -146,5 +146,6 @@ clean:
 		fit/virt.itb \
 		filesystem/root.img \
 		filesystem/root/* \
+		sd.img \
 		kernel/kernel \
 		kernel/simple.elf
