@@ -57,7 +57,8 @@ virt-run: fit/virt.itb opensbi/build/platform/generic/firmware/fw_dynamic.bin \
 		u-boot/.config u-boot/spl/u-boot-spl.bin u-boot/u-boot.itb
 	qemu-system-riscv64 -nographic -machine virt -m 4G -bios u-boot/spl/u-boot-spl.bin \
 		-device loader,file=u-boot/u-boot.itb,addr=0x80200000 \
-		-device loader,file=fit/virt.itb,addr=0x90000000
+		-device loader,file=fit/virt.itb,addr=0x90000000 \
+		${QEMU_FLAGS}
 
 # --------------------------------------------------------------------
 # opensbi stuff
@@ -113,16 +114,15 @@ u-boot/spl/u-boot-spl.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bi
 # --------------------------------------------------------------------
 # kernel stuff
 
+REEDOS_LOC := ~/reedos
 # This likely not what you really want, and is just a test. Dropping
 # in your own binary for kernel/kernel should work, as should
 # replacing this rule with something better
-kernel/kernel: kernel/simple.S kernel/simple.ld
-	cd kernel; \
-	${CROSS_COMPILE}gcc -ffreestanding -nostdlib -no-pie -fno-pic \
-		-Tsimple.ld -e entry \
-		simple.S -o simple.elf; \
-	${CROSS_COMPILE}objcopy -O binary simple.elf kernel; \
-	cd ..
+kernel/kernel: .FORCE 
+	make -C ${REEDOS_LOC} build
+	cp ${REEDOS_LOC}/target/riscv64imac-unknown-none-elf/debug/reedos kernel/kernel.elf
+	${CROSS_COMPILE}objcopy -O binary kernel/kernel.elf $@
+.FORCE:
 
 # --------------------------------------------------------------------
 # make a FIT image for u-boot to launch, to be placed in the generic
