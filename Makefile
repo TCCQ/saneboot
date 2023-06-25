@@ -190,5 +190,5 @@ clean:
 		filesystem/root/* \
 		sd.img \
 		kernel/kernel \
-		kernel/simple.elf \
+		kernel/kernel.elf \
 		u-boot/.config
