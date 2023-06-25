@@ -106,7 +106,7 @@ u-boot/u-boot-dtb.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-
 # wrapper of opensbi and provides other black box stuff for
 # uboot. Just think about this as the first stage bootloader, and that
 # everything after this is running atop opensbi.
-u-boot/spl/u-boot-spl.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config 
+u-boot/spl/u-boot-spl.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bin u-boot/.config
 	cp $< u-boot/
 	make -C u-boot spl/u-boot-spl.bin
 
@@ -126,7 +126,7 @@ kernel/kernel: kernel/simple.S kernel/simple.ld
 
 # --------------------------------------------------------------------
 # make a FIT image for u-boot to launch, to be placed in the generic
-# fs part of the filesystem. 
+# fs part of the filesystem.
 
 # This is a image that contains a device tree binary for the
 # visionfive2 board and the kernel we want to launch. See the .its
@@ -163,7 +163,7 @@ sd.img: u-boot/spl/u-boot-spl.bin \
 			opensbi/build/platform/generic/firmware/fw_payload.bin \
 			filesystem/root.img
 	dd if=/dev/zero of=sd.img bs=1 count=0 seek=${TOTAL_SIZE}
-	sgdisk --clear  \
+	sgdisk --clear	\
 		--new=1:$(SPL_START):$(SPL_END) --change-name=1:"spl" --typecode=1:$(SPL) \
 		--new=2:$(UBOOT_START):$(UBOOT_END) --change-name=2:"uboot" --typecode=2:$(UBOOT) \
 		--new=3:$(EXT2_START):$(EXT2_END) --change-name=3:"file system" --typecode=3:8300 \
@@ -190,4 +190,5 @@ clean:
 		filesystem/root/* \
 		sd.img \
 		kernel/kernel \
-		kernel/simple.elf
+		kernel/simple.elf \
+		u-boot/.config
