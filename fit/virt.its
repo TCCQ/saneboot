@@ -16,8 +16,8 @@
                         arch = "riscv";
                         os = "linux";
                         compression = "none";
-                        load = <0x80000000>;
-                        entry = <0x80000000>;
+                        load = <0xA0000000>;
+                        entry = <0xA0000000>;
                         hash-1 {
                                 algo = "crc32";
                         };
