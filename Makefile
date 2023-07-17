@@ -120,7 +120,7 @@ REEDOS_LOC := ~/reedos
 # replacing this rule with something better
 kernel/kernel: .FORCE
 	make -C ${REEDOS_LOC} build
-	cp -u ${REEDOS_LOC}/target/riscv64imac-unknown-none-elf/debug/reedos kernel/kernel.elf
+	cp -u ${REEDOS_LOC}/target/riscv64imac-unknown-none-elf/debug/kernel kernel/kernel.elf
 	${CROSS_COMPILE}objcopy -O binary kernel/kernel.elf $@
 .FORCE:
 
