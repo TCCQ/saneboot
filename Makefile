@@ -114,13 +114,13 @@ u-boot/spl/u-boot-spl.bin: opensbi/build/platform/generic/firmware/fw_dynamic.bi
 # --------------------------------------------------------------------
 # kernel stuff
 
-REEDOS_LOC := ~/reedos
+REEDOS_LOC := ./reedos
 # This likely not what you really want, and is just a test. Dropping
 # in your own binary for kernel/kernel should work, as should
 # replacing this rule with something better
 kernel/kernel: .FORCE
 	make -C ${REEDOS_LOC} build
-	cp -u ${REEDOS_LOC}/target/riscv64imac-unknown-none-elf/debug/kernel kernel/kernel.elf
+	cp -u ${REEDOS_LOC}/target/riscv64gc-unknown-none-elf/debug/kernel kernel/kernel.elf
 	${CROSS_COMPILE}objcopy -O binary kernel/kernel.elf $@
 .FORCE:
 

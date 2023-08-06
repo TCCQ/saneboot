@@ -4,3 +4,6 @@
 [submodule "opensbi"]
 	path = opensbi
 	url = https://github.com/riscv-software-src/opensbi
+[submodule "reedos"]
+	path = reedos
+	url = https://github.com/TCCQ/reedos

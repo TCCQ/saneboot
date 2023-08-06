@@ -1,3 +1,5 @@
+You are on the reedos branch. That means you probably want to checkout to some interesting branch of the reedos submodule before building. Your interest is probably a `make virt-run QEMU_FLAGS='-S -s'` and a `cd kernel; riscvgc-elf-gdb kernel.elf` in two different terminals in the root of saneboot.
+
 This is an attempt at a sane booting protocol for RISC-V. Specifically it targets the StarFive boards. It also supports the qemu virt machine for ease of development.
 
 Be sure to have git-lfs and do a `git submodule update --init --recursive`.
@@ -6,6 +8,12 @@ This is an incomplete list of required build tools you might not already have, f
 - cpio
 - dtc
 - mtools
+- full riscv cross-compiling toolchain (gcc in current setup)
+- uboot-tools
+There is also a full list of build dependencies of u-boot that can be found here:
+https://u-boot.readthedocs.io/en/latest/build/gcc.html
+You probably also want qemu-system-riscv
+
 
 There are two main ways of using this system. The goal of both is to allow you to launch the binary located at `kernel/kernel` on top of an opensbi + uboot base. This means that the kernel can use opensbi calls, and uboot is just there to get the ball rolling.
 
