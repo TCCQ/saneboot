@@ -1,4 +1,4 @@
-You are on the reedos branch. That means you probably want to checkout to some interesting branch of the reedos submodule before building. Your interest is probably a `make virt-run QEMU_FLAGS='-S -s'` and a `cd kernel; riscvgc-elf-gdb kernel.elf` in two different terminals in the root of saneboot.
+You are on the reedos branch. That means you probably want to checkout to some interesting branch of the reedos submodule before building. Your interest is probably a `make virt-run QEMU_FLAGS='-S -s'` and a `cd kernel; riscv64gc-elf-gdb kernel.elf` in two different terminals in the root of saneboot.
 
 This is an attempt at a sane booting protocol for RISC-V. Specifically it targets the StarFive boards. It also supports the qemu virt machine for ease of development.
 
